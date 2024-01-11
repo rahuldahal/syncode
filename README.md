@@ -40,6 +40,8 @@ $ yarn run start
 
 # watch mode
 $ yarn run start:dev
+$ docker compose up dev-db -d
+$ npx prisma migrate dev # run prisma migrations and generation
 
 # production mode
 $ yarn run start:prod

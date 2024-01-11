@@ -1,10 +1,10 @@
 version: '3.8'
 services:
   dev-db:
-    image: postgres:13
+    image: postgres:16
     ports:
       - 5432:5432
     environment:
-      - POSTGRES_USER= postgres
-      - POSTGRES_PASSWORD= postgres
-      - POSTGRES_DB= coedit
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=coedit
