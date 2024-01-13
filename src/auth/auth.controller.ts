@@ -7,11 +7,9 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('signup')
+  // DTO: Data Transfer Object more - https://docs.nestjs.com/techniques/validation
   signUp(@Body() dto: AuthDto) {
-    console.log({ dto });
-
-    // DTO: Data Transfer Object more - https://docs.nestjs.com/techniques/validation
-    return this.authService.signUp();
+    return this.authService.signUp(dto);
   }
 
   @Post('signin')
