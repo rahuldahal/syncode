@@ -11,6 +11,9 @@ async function bootstrap() {
     })
   );
 
+  // Set the global prefix for all routes
+  app.setGlobalPrefix('api/v1');
+
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT') || 8888;
   await app.listen(port);
