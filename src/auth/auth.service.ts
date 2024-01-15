@@ -1,7 +1,7 @@
 import * as argon from 'argon2';
 import { AuthDto } from './dto';
-import { PICTURE_API } from 'src/constants';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { PICTURE_API, errorMessages } from 'src/constants';
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
@@ -30,7 +30,7 @@ export class AuthService {
         error instanceof PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
-        throw new ForbiddenException('Duplicate Credentials!');
+        throw new ForbiddenException(errorMessages.DUPLICATE_CREDENTIALS);
       }
 
       throw error;
@@ -46,14 +46,14 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new ForbiddenException('User does not exist!');
+      throw new ForbiddenException(errorMessages.NO_USER);
     }
 
     // compare password
     const isPasswordValid = await argon.verify(user.password, dto.password);
 
     if (!isPasswordValid) {
-      throw new ForbiddenException('Invalid Password!');
+      throw new ForbiddenException(errorMessages.INVALID_PASSWORD);
     }
 
     // send user
