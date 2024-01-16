@@ -1,13 +1,19 @@
+import { ConfigService } from '@nestjs/config';
 import * as argon from 'argon2';
 import { AuthDto } from './dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PICTURE_API, errorMessages } from 'src/constants';
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AuthService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private jwt: JwtService,
+    private config: ConfigService
+  ) {}
 
   async signUp(dto: AuthDto) {
     // hash the password
@@ -23,8 +29,9 @@ export class AuthService {
         },
       });
 
-      // return the saved user
-      return user;
+      // return the JWT
+      const accessToken = await this.signJWT(user.id, user.username);
+      return { accessToken };
     } catch (error) {
       if (
         error instanceof PrismaClientKnownRequestError &&
@@ -56,7 +63,19 @@ export class AuthService {
       throw new ForbiddenException(errorMessages.INVALID_PASSWORD);
     }
 
-    // send user
-    return user;
+    // send JWT
+    const accessToken = await this.signJWT(user.id, user.username);
+    return { accessToken };
+  }
+
+  async signJWT(id: number, username: string): Promise<string> {
+    const payload = {
+      sub: id,
+      username,
+    };
+
+    return this.jwt.signAsync(payload, {
+      secret: this.config.get('JWT_SECRET'),
+    });
   }
 }
