@@ -2,7 +2,8 @@ import { AppModule } from './app.module';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { ValidationPipe } from '@nestjs/common';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { Redirect } from './middlewares/redirect.middleware';
+import setupSwagger from './docs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -12,20 +13,14 @@ async function bootstrap() {
     })
   );
 
+  // Apply middleware for redirection
+  app.use(Redirect());
+
   // Set the global prefix for all routes
   app.setGlobalPrefix('api/v1');
 
   // Swagger docs configuration
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('Co-edit API Documentation')
-    .setDescription(
-      'Use the documentation of the API below as a reference to make requests.'
-    )
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('docs', app, document);
+  setupSwagger(app);
 
   // .env configuration
   const configService = app.get(ConfigService);

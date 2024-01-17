@@ -3,7 +3,8 @@ import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { MyConfigModule } from './config.module';
 import { PrismaModule } from './prisma/prisma.module';
-import { Module, ValidationPipe } from '@nestjs/common';
+import { RedirectMiddleware } from './middlewares/redirect.middleware';
+import { MiddlewareConsumer, Module, ValidationPipe } from '@nestjs/common';
 
 @Module({
   providers: [
@@ -14,4 +15,9 @@ import { Module, ValidationPipe } from '@nestjs/common';
   ],
   imports: [MyConfigModule, AuthModule, UserModule, PrismaModule],
 })
-export class AppModule {}
+export class AppModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Apply the RedirectMiddleware to all routes
+    consumer.apply(RedirectMiddleware).forRoutes('*');
+  }
+}
