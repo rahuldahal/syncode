@@ -1,6 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 import * as argon from 'argon2';
-import { AuthDto } from './dto';
+import { signInDto, signUpDto } from './dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PICTURE_API, errorMessages } from 'src/constants';
 import { ForbiddenException, Injectable } from '@nestjs/common';
@@ -15,9 +15,14 @@ export class AuthService {
     private config: ConfigService
   ) {}
 
-  async signUp(dto: AuthDto) {
+  async signUp(dto: signUpDto) {
     // hash the password
     const hash = await argon.hash(dto.password);
+    let picture = `${PICTURE_API}${dto.username}`;
+
+    if (dto.firstname && dto.lastname) {
+      picture = `${PICTURE_API}${dto.firstname}+${dto.lastname}`;
+    }
 
     try {
       // save user in the database
@@ -25,7 +30,9 @@ export class AuthService {
         data: {
           username: dto.username,
           password: hash,
-          picture: `${PICTURE_API}${dto.username}`,
+          picture,
+          firstname: dto.firstname,
+          lastname: dto.lastname,
         },
       });
 
@@ -44,7 +51,7 @@ export class AuthService {
     }
   }
 
-  async signIn(dto: AuthDto) {
+  async signIn(dto: signInDto) {
     // find user by username
     const user = await this.prisma.user.findUnique({
       where: {
