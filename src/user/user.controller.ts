@@ -1,6 +1,7 @@
-import { Request } from 'express';
+import { User } from '@prisma/client';
 import { AuthGuard } from '@nestjs/passport';
-import { Controller, Get, Req, UseGuards } from '@nestjs/common';
+import { GetUser } from 'src/auth/Decorator';
+import { Controller, Get, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOkResponse,
@@ -11,14 +12,14 @@ import {
 
 @ApiTags('Users')
 @Controller('users')
+@UseGuards(AuthGuard('accessToken'))
 export class UserController {
   @ApiBearerAuth() // Indicates that the endpoint requires Bearer token authentication
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   @ApiOkResponse({ description: 'User information retrieved successfully' })
-  @UseGuards(AuthGuard('accessToken'))
-  @Get('me')
   @ApiOperation({ summary: 'Get current user information' })
-  getMe(@Req() req: Request) {
-    return req.user;
+  @Get('me')
+  getMe(@GetUser() user: User) {
+    return user;
   }
 }
