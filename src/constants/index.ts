@@ -1,8 +1,10 @@
 export const PICTURE_API: string = 'https://ui-avatars.com/api/?name=';
 
-interface GenericObject {
+export interface GenericObject {
   [key: string]: string;
 }
+
+export type GenericDTO = Record<string, any>;
 
 export const errorMessages: GenericObject = {
   DUPLICATE_CREDENTIALS: 'Duplicate Credentials!',
