@@ -2,15 +2,23 @@ import { UserService } from './user.service';
 import { User } from '@prisma/client';
 import { AuthGuard } from '@nestjs/passport';
 import { GetUser } from 'src/auth/Decorator';
-import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Patch,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiBody,
+  ApiForbiddenResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
-  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { UpdateUserDto } from './dto';
+import { UpdatePasswordDto, UpdateUserDto } from './dto';
 
 @ApiTags('Users')
 @Controller('users')
@@ -19,7 +27,7 @@ export class UserController {
   constructor(private userService: UserService) {}
 
   @ApiBearerAuth() // Indicates that the endpoint requires Bearer token authentication
-  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiForbiddenResponse({ description: 'Forbidden' })
   @ApiOkResponse({ description: 'User information retrieved successfully' })
   @ApiOperation({ summary: 'Get current user information' })
   @Get('me')
@@ -27,8 +35,24 @@ export class UserController {
     return user;
   }
 
+  @ApiBearerAuth()
+  @ApiForbiddenResponse({ description: 'Forbidden' })
+  @ApiOkResponse({ description: 'User information updated successfully' })
+  @ApiOperation({ summary: 'Update current user information' })
   @Patch('me')
+  @ApiBody({ type: UpdateUserDto })
   updateMe(@Body() dto: UpdateUserDto, @GetUser() user: User) {
     return this.userService.updateUser(dto, user.id);
+  }
+
+  @ApiBearerAuth()
+  @ApiForbiddenResponse({ description: 'Forbidden' })
+  @ApiOkResponse({ description: 'Password updated successfully' })
+  @ApiOperation({ summary: 'Update current user password' })
+  @Patch('me/password')
+  @HttpCode(200)
+  @ApiBody({ type: UpdatePasswordDto })
+  updatePassword(@Body() dto: UpdatePasswordDto, @GetUser() user: User) {
+    return this.userService.updatePassword(dto, user.id);
   }
 }

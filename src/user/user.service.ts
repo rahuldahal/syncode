@@ -1,8 +1,14 @@
-import { UpdateUserDto } from './dto';
+import * as argon from 'argon2';
 import { User } from '@prisma/client';
+import { UpdatePasswordDto, UpdateUserDto } from './dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Injectable, NotFoundException } from '@nestjs/common';
 import { GenericDTO, GenericObject, errorMessages } from 'src/constants/index';
+import {
+  ForbiddenException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 
 @Injectable()
 export class UserService {
@@ -75,5 +81,35 @@ export class UserService {
     }
   }
 
-  // TODO: update password
+  async updatePassword(dto: UpdatePasswordDto, userId: User['id']) {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: {
+          id: userId,
+        },
+      });
+
+      if (!user) {
+        throw new NotFoundException(errorMessages.NO_USER);
+      }
+
+      // Validate the current password
+      const isPasswordValid = await argon.verify(
+        user.password,
+        dto.currentPassword
+      );
+
+      if (!isPasswordValid) {
+        throw new ForbiddenException(errorMessages.INVALID_PASSWORD);
+      }
+
+      // Update the password in the database
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { password: await argon.hash(dto.newPassword) },
+      });
+    } catch (error) {
+      throw error;
+    }
+  }
 }
