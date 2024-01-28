@@ -3,6 +3,7 @@ import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { MyConfigModule } from './config.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { ProjectModule } from './project/project.module';
 import { RedirectMiddleware } from './middlewares/redirect.middleware';
 import { MiddlewareConsumer, Module, ValidationPipe } from '@nestjs/common';
 
@@ -13,7 +14,13 @@ import { MiddlewareConsumer, Module, ValidationPipe } from '@nestjs/common';
       useClass: ValidationPipe,
     },
   ],
-  imports: [MyConfigModule, AuthModule, UserModule, PrismaModule],
+  imports: [
+    MyConfigModule,
+    AuthModule,
+    UserModule,
+    PrismaModule,
+    ProjectModule,
+  ],
 })
 export class AppModule {
   configure(consumer: MiddlewareConsumer) {
