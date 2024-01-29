@@ -1,11 +1,11 @@
-import { ConfigService } from '@nestjs/config';
 import * as argon from 'argon2';
-import { signInDto, signUpDto } from './dto';
-import { PrismaService } from 'src/prisma/prisma.service';
-import { PICTURE_API, errorMessages } from 'src/constants';
-import { ForbiddenException, Injectable } from '@nestjs/common';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { JwtService } from '@nestjs/jwt';
+import { signInDto, signUpDto } from './dto';
+import { ConfigService } from '@nestjs/config';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { ForbiddenException, Injectable } from '@nestjs/common';
+import { PICTURE_API, duration, errorMessages } from 'src/constants';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 @Injectable()
 export class AuthService {
@@ -83,6 +83,7 @@ export class AuthService {
 
     return this.jwt.signAsync(payload, {
       secret: this.config.get('JWT_SECRET'),
+      expiresIn: duration.FIFTEEEN_MINUTES,
     });
   }
 }

@@ -11,3 +11,7 @@ export const errorMessages: GenericObject = {
   NO_USER: 'User does not exist!',
   INVALID_PASSWORD: 'Invalid Password!',
 };
+
+export const duration: GenericObject = {
+  FIFTEEEN_MINUTES: '15m',
+};
