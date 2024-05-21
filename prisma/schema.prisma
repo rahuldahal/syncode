@@ -34,4 +34,17 @@ model Project {
   owner         User   @relation(name: "Owner", fields: [ownerId], references: [id])
   ownerId       Int
   collaborators User[] @relation(name: "Collaborators")
+  file          File[] @relation(name: "Project")
+}
+
+model File {
+  id        Int      @id @default(autoincrement())
+  name      String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  project   Project @relation(name: "Project", fields: [projectId], references: [id])
+  projectId Int
 }
