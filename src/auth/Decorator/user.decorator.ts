@@ -6,3 +6,10 @@ export const GetUser = createParamDecorator(
     return request.user;
   }
 );
+
+export const GetParam = createParamDecorator(
+  (param: string, ctx: ExecutionContext) => {
+    const request = ctx.switchToHttp().getRequest();
+    return request.params[param];
+  }
+);
