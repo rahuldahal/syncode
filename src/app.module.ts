@@ -1,6 +1,7 @@
 import { APP_PIPE } from '@nestjs/core';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
+import { FileModule } from './file/file.module';
 import { MyConfigModule } from './config.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProjectModule } from './project/project.module';
@@ -20,6 +21,7 @@ import { MiddlewareConsumer, Module, ValidationPipe } from '@nestjs/common';
     UserModule,
     PrismaModule,
     ProjectModule,
+    FileModule,
   ],
 })
 export class AppModule {
