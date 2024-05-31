@@ -2,10 +2,8 @@
 
 set -e
 
-git fetch origin main
-
 # Check if schema.prisma has changed
-if git diff --exit-code origin/main -- prisma/schema.prisma; then
+if git diff --exit-code HEAD~1 -- prisma/schema.prisma; then
   echo "schema.prisma has not changed. Skipping Prisma commands."
 else
   echo "schema.prisma has changed. Running Prisma commands."
