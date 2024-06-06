@@ -1,7 +1,8 @@
 import { CreateFileDto } from './dto';
+import { User } from '@prisma/client';
 import { AuthGuard } from '@nestjs/passport';
 import { FileService } from './file.service';
-import { GetParam } from 'src/auth/Decorator';
+import { GetParam, GetUser } from 'src/auth/Decorator';
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 
 import {
@@ -30,6 +31,17 @@ export class FileController {
     return this.fileService.createFile(dto);
   }
 
+  @ApiBearerAuth()
+  @ApiForbiddenResponse({ description: 'Forbidden' })
+  @ApiOperation({ summary: 'Get all files' })
+  @ApiResponse({
+    status: 200,
+    description: 'Files found successfully',
+  })
+  @Get('/')
+  findAllFiles(@GetUser() user: User ){
+    return this.fileService.getAllFiles(user.id);
+  }
 
   @ApiBearerAuth()
   @ApiForbiddenResponse({ description: 'Forbidden' })
