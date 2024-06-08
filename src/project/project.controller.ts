@@ -3,7 +3,7 @@ import { CreateProjectDto } from './dto';
 import { GetUser } from 'src/auth/Decorator';
 import { AuthGuard } from '@nestjs/passport';
 import { ProjectService } from './project.service';
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 
 import {
   ApiBearerAuth,
@@ -31,5 +31,17 @@ export class ProjectController {
   @Post('/')
   createProject(@Body() dto: CreateProjectDto, @GetUser() user: User) {
     return this.projectService.createProject(user, dto);
+  }
+
+  @ApiBearerAuth()
+  @ApiForbiddenResponse({ description: 'Forbidden' })
+  @ApiOperation({ summary: 'Get all projects' })
+  @ApiResponse({
+    status: 200,
+    description: 'Projects found successfully',
+  })
+  @Get('/')
+  findAllProjects(@GetUser() user: User ){
+    return this.projectService.getAllProjects(user.id);
   }
 }

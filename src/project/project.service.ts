@@ -45,4 +45,24 @@ export class ProjectService {
       throw InternalServerErrorException;
     }
   }
+
+  async getAllProjects(userId: number) {
+    try { 
+      const projectsWithFiles = await this.prisma.project.findMany({
+        where: {
+          ownerId: userId,
+        },
+        include: {
+          files: true,
+        },
+      });
+      
+
+      // Return the found projects along with relevant files
+      return projectsWithFiles;
+    } catch (error) {
+      console.log(error);
+      throw InternalServerErrorException;
+    }
+  }
 }

@@ -25,33 +25,6 @@ export class FileService {
     }
   }
 
-  // Get all files
-  async getAllFiles(userId: number) {
-    try { 
-      const files = await this.prisma.file.findMany({
-        where: {
-          project: {
-            ownerId: userId,
-          },
-        },
-        include: {
-          project: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-        },
-      });
-
-      // Return the found files along with relevant project
-      return files;
-    } catch (error) {
-      console.log(error);
-      throw InternalServerErrorException;
-    }
-  }
-
   // Get a file
   async getFile(id: number) {
     try {

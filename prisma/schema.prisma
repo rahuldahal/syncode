@@ -34,7 +34,7 @@ model Project {
   owner         User   @relation(name: "Owner", fields: [ownerId], references: [id])
   ownerId       Int
   collaborators User[] @relation(name: "Collaborators")
-  file          File[] @relation(name: "Project")
+  files         File[] @relation(name: "Project")
 }
 
 model File {
