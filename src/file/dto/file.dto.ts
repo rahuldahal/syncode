@@ -11,7 +11,7 @@ export class CreateFileDto {
     description: 'The actual content(code) of the file',
   })
   @IsString()
-  content: string;
+  content: string = ''; // empty by default
 
   @ApiProperty({
     example: 1,
