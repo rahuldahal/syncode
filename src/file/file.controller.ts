@@ -1,8 +1,8 @@
-import { CreateFileDto } from './dto';
+import { CreateFileDto, UpdateContentDto } from './dto';
 import { AuthGuard } from '@nestjs/passport';
 import { FileService } from './file.service';
 import { GetParam } from 'src/auth/Decorator';
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common';
 
 import {
   ApiBearerAuth,
@@ -38,7 +38,20 @@ export class FileController {
     description: 'File has been found',
   })
   @Get('/:id')
+  // TODO: verify owner
   findFile(@GetParam('id') id: string) {
     return this.fileService.getFile(parseInt(id));
+  }
+
+  @ApiBearerAuth()
+  @ApiForbiddenResponse({ description: 'Forbidden' })
+  @ApiOperation({ summary: 'Update content of the file matching the id' })
+  @ApiResponse({
+    status: 200,
+    description: 'File has been updated',
+  })
+  @Patch('/:id')
+  updateContent(@GetParam('id') id: string, @Body() data: UpdateContentDto) {
+    return this.fileService.updateContent(parseInt(id), data);
   }
 }

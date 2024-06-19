@@ -20,3 +20,12 @@ export class CreateFileDto {
   @IsInt()
   projectId: number;
 }
+
+export class UpdateContentDto {
+  @ApiProperty({
+    example: 'console.log("Sample Code");',
+    description: 'The updated content(code) of the file',
+  })
+  @IsString()
+  content: string;
+}
