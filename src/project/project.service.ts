@@ -1,7 +1,12 @@
 import { User } from '@prisma/client';
 import { CreateProjectDto } from './dto/project.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 
 @Injectable()
 export class ProjectService {
@@ -47,7 +52,7 @@ export class ProjectService {
   }
 
   async getAllProjects(userId: number) {
-    try { 
+    try {
       const projectsWithFiles = await this.prisma.project.findMany({
         where: {
           ownerId: userId,
@@ -56,7 +61,6 @@ export class ProjectService {
           files: true,
         },
       });
-      
 
       // Return the found projects along with relevant files
       return projectsWithFiles;
@@ -64,5 +68,27 @@ export class ProjectService {
       console.log(error);
       throw InternalServerErrorException;
     }
+  }
+
+  async deleteProject(id: number, ownerId: number) {
+    const project = await this.prisma.project.findUnique({
+      where: {
+        id,
+      },
+    });
+
+    if (!project) {
+      throw new NotFoundException();
+    }
+
+    if (project.ownerId !== ownerId) {
+      throw new ForbiddenException();
+    }
+
+    await this.prisma.project.delete({
+      where: {
+        id,
+      },
+    });
   }
 }

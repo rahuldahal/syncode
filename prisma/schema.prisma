@@ -45,6 +45,6 @@ model File {
   updatedAt DateTime @updatedAt
 
   // Relationships
-  project   Project @relation(name: "Project", fields: [projectId], references: [id])
+  project   Project @relation(name: "Project", fields: [projectId], references: [id], onDelete: Cascade)
   projectId Int
 }
