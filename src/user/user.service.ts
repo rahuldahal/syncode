@@ -47,6 +47,7 @@ export class UserService {
     };
   }
 
+  // TODO: make generic and reusable
   async update(userId: User['id'], data: Partial<User>): Promise<User> {
     const user = await this.prisma.user.findUnique({
       where: {
@@ -96,7 +97,7 @@ export class UserService {
       // Validate the current password
       const isPasswordValid = await argon.verify(
         user.password,
-        dto.currentPassword
+        dto.currentPassword,
       );
 
       if (!isPasswordValid) {
@@ -108,6 +109,26 @@ export class UserService {
         where: { id: userId },
         data: { password: await argon.hash(dto.newPassword) },
       });
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async findByUsername(username: string) {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: {
+          username,
+        },
+      });
+
+      if (!user) {
+        throw new NotFoundException(errorMessages.NO_USER);
+      }
+
+      const { password, ...withoutPassword } = user;
+
+      return withoutPassword;
     } catch (error) {
       throw error;
     }

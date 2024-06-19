@@ -1,7 +1,8 @@
-import { UserService } from './user.service';
 import { User } from '@prisma/client';
+import { UserService } from './user.service';
 import { AuthGuard } from '@nestjs/passport';
-import { GetUser } from 'src/auth/Decorator';
+import { GetParam, GetUser } from 'src/auth/Decorator';
+import { UpdatePasswordDto, UpdateUserDto } from './dto';
 import {
   Body,
   Controller,
@@ -16,9 +17,9 @@ import {
   ApiForbiddenResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
-import { UpdatePasswordDto, UpdateUserDto } from './dto';
 
 @ApiTags('Users')
 @Controller('users')
@@ -54,5 +55,15 @@ export class UserController {
   @ApiBody({ type: UpdatePasswordDto })
   updatePassword(@Body() dto: UpdatePasswordDto, @GetUser() user: User) {
     return this.userService.updatePassword(dto, user.id);
+  }
+
+  @ApiBearerAuth()
+  @ApiForbiddenResponse({ description: 'Forbidden' })
+  @ApiOkResponse({ description: 'User retrieved successfully' })
+  @ApiOperation({ summary: 'Get user by username' })
+  @ApiQuery({ name: 'username', required: true, type: String })
+  @Get('/:username')
+  getUser(@GetParam('username') username: string) {
+    return this.userService.findByUsername(username);
   }
 }
