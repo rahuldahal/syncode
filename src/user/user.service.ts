@@ -133,4 +133,32 @@ export class UserService {
       throw error;
     }
   }
+
+  async findByUsernameContaining(searchString: string) {
+    try {
+      const users = await this.prisma.user.findMany({
+        where: {
+          username: {
+            contains: searchString,
+            mode: 'insensitive',
+          },
+        },
+      });
+
+      if (!users || users.length === 0) {
+        return null;
+      }
+
+      const cleanedUpData = users.map((user) => {
+        return {
+          id: user.id,
+          username: user.username,
+        };
+      });
+
+      return cleanedUpData;
+    } catch (error) {
+      throw error;
+    }
+  }
 }
