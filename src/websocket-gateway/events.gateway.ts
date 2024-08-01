@@ -1,3 +1,4 @@
+import { UserService } from './../user/user.service';
 import { OnModuleInit } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import {
@@ -8,6 +9,9 @@ import {
 } from '@nestjs/websockets';
 import { Server } from 'socket.io';
 
+interface TSearchBody {
+  username: string;
+}
 interface TInvitationBody {
   sender: {
     id: number;
@@ -19,7 +23,10 @@ interface TInvitationBody {
 
 @WebSocketGateway({ cors: { origin: 'http://localhost:5173' } })
 export class EventsGateway implements OnModuleInit {
-  constructor(private jwt: JwtService) {}
+  constructor(
+    private jwt: JwtService,
+    private userService: UserService,
+  ) {}
 
   @WebSocketServer()
   server: Server;
@@ -41,6 +48,32 @@ export class EventsGateway implements OnModuleInit {
       console.log(user);
       console.log(socket.id);
     });
+  }
+
+  @SubscribeMessage('search')
+  async handleSearch(@MessageBody() body: TSearchBody): Promise<void> {
+    const { username } = body;
+
+    if (!username) {
+      this.server.emit('searchResult', { message: 'Username not provided' });
+      return;
+    }
+
+    try {
+      const searchResult =
+        await this.userService.findByUsernameContaining(username);
+
+      if (searchResult && searchResult.length > 0) {
+        this.server.emit('searchResult', searchResult);
+      } else {
+        this.server.emit('searchResult', { message: 'User not found' });
+      }
+    } catch (error) {
+      this.server.emit('searchResult', {
+        message: 'An error occurred',
+        error: error.message,
+      });
+    }
   }
 
   @SubscribeMessage('invite')
