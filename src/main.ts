@@ -5,14 +5,18 @@ import { ConfigService } from '@nestjs/config';
 import { ValidationPipe } from '@nestjs/common';
 import { Redirect } from './middlewares/redirect.middleware';
 import { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
+import { HttpExceptionFilter } from './utils/http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
-    })
+    }),
   );
+
+  // Register the global exception filter
+  app.useGlobalFilters(new HttpExceptionFilter());
 
   // Apply middleware for redirection
   app.use(Redirect());
