@@ -1,54 +1,23 @@
-import { UserService } from './../user/user.service';
-import { FileService } from './../file/file.service';
-import { OnModuleInit } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import {
-  MessageBody,
-  SubscribeMessage,
-  WebSocketGateway,
-  WebSocketServer,
-} from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import { UserService } from '../user/user.service';
+import { FileService } from 'src/file/file.service';
+import { WebSocketServer } from '@nestjs/websockets';
 
-interface TSearchBody {
-  username: string;
-}
-interface TInvitationBody {
-  sender: {
-    id: number;
-    username: string;
-  };
-  receiver: {
-    id: number;
-    username: string;
-  };
-  file: {
-    id: number;
-    name: string;
-  };
-}
+import {
+  TSearchBody,
+  TConnectedUsers,
+  TInvitationBody,
+  TFileUpdateBody,
+  TConfirmationBody,
+} from './event.interfaces';
 
-interface TConfirmationBody extends TInvitationBody {
-  senderSocketId: string;
-  receiverSocketId: string;
-}
+export class EventService {
+  // TODO: shall move this data into Redis cache
+  private connectedUsers: { [id: string]: TConnectedUsers } = {}; // {"16": {socketId: "5sAK2BUIC2gRT_QqAAAB", beenInviteded: true, invitedBy: "PoykztaXOAYH8MJ9AAAD", hasInvited: XoykztaXOAYH8MJ9AAAD}
+  private logger = new Logger('event-service');
 
-interface TConnectedUsers {
-  socketId: string;
-  invitationStatus: 'inviter' | 'invitee' | null;
-  hasInvited: string | null; // socket ID
-  invitedBy: string | null; // socket ID
-}
-
-interface TFileUpdateBody {
-  id: number;
-  content: string;
-  senderSocketId: string;
-  receiverSocketId: string;
-}
-
-@WebSocketGateway({ cors: { origin: 'http://localhost:5173' } })
-export class EventsGateway implements OnModuleInit {
   constructor(
     private jwt: JwtService,
     private userService: UserService,
@@ -58,11 +27,8 @@ export class EventsGateway implements OnModuleInit {
   @WebSocketServer()
   server: Server;
 
-  // TODO: shall move this data into Redis cache
-  private connectedUsers: { [id: string]: TConnectedUsers } = {}; // {"16": {socketId: "5sAK2BUIC2gRT_QqAAAB", beenInviteded: true, invitedBy: "PoykztaXOAYH8MJ9AAAD", hasInvited: XoykztaXOAYH8MJ9AAAD}
-
-  getConnectedUser(socket: Socket) {
-    const authorizationHeader = socket.handshake.headers['authorization'];
+  decodeJWT(client: Socket) {
+    const authorizationHeader = client.handshake.headers['authorization'];
     if (!authorizationHeader || !authorizationHeader.startsWith('Bearer ')) {
       throw new Error('Authorization header missing or invalid');
     }
@@ -72,21 +38,18 @@ export class EventsGateway implements OnModuleInit {
     return { id: decoded.sub, username: decoded.username };
   }
 
-  onModuleInit() {
-    this.server.on('connection', (socket) => {
-      const user = this.getConnectedUser(socket);
+  addConnectedUser(socket: Socket, user: { id: string; username: string }) {
+    this.connectedUsers[user.id] = {
+      socketId: socket.id,
+      invitationStatus: null,
+      hasInvited: null,
+      invitedBy: null,
+    };
 
-      this.connectedUsers[user.id] = {
-        socketId: socket.id,
-        invitationStatus: null,
-        hasInvited: null,
-        invitedBy: null,
-      };
-      console.log(this.connectedUsers);
-    });
+    this.logger.log(this.connectedUsers);
   }
 
-  handleDisconnect(client: Socket): void {
+  handleDisconnect(client: Socket) {
     const connectedUsersId = Object.keys(this.connectedUsers);
     const disconnectedClientId = connectedUsersId.find(
       (id) => this.connectedUsers[id].socketId === client.id,
@@ -132,8 +95,7 @@ export class EventsGateway implements OnModuleInit {
     delete this.connectedUsers[disconnectedClientId];
   }
 
-  @SubscribeMessage('search')
-  async handleSearch(@MessageBody() body: TSearchBody): Promise<void> {
+  async handleSearch(body: TSearchBody) {
     const { username } = body;
 
     if (!username) {
@@ -158,8 +120,7 @@ export class EventsGateway implements OnModuleInit {
     }
   }
 
-  @SubscribeMessage('invite')
-  handleInvitation(@MessageBody() body: TInvitationBody) {
+  handleInvitation(body: TInvitationBody) {
     const { sender, receiver, file } = body;
 
     if (sender === undefined || receiver === undefined || file === undefined) {
@@ -203,8 +164,7 @@ export class EventsGateway implements OnModuleInit {
     return;
   }
 
-  @SubscribeMessage('confirm')
-  handleConfirmation(@MessageBody() body: TConfirmationBody) {
+  handleConfirmation(body: TConfirmationBody) {
     const { sender, senderSocketId, receiver, receiverSocketId, file } = body;
 
     if (
@@ -234,8 +194,7 @@ export class EventsGateway implements OnModuleInit {
     return;
   }
 
-  @SubscribeMessage('fileUpdate')
-  async handleFileUpdate(@MessageBody() body: TFileUpdateBody) {
+  async handleFileUpdate(body: TFileUpdateBody) {
     const { id, content, senderSocketId, receiverSocketId } = body;
 
     if (id === undefined || content === undefined) {

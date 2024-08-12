@@ -3,9 +3,9 @@ import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { FileModule } from './file/file.module';
 import { MyConfigModule } from './config.module';
+import { EventModule } from './event/event.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProjectModule } from './project/project.module';
-import { GatewayModule } from './websocket-gateway/gateway.module';
 import { RedirectMiddleware } from './middlewares/redirect.middleware';
 import { MiddlewareConsumer, Module, ValidationPipe } from '@nestjs/common';
 
@@ -23,7 +23,7 @@ import { MiddlewareConsumer, Module, ValidationPipe } from '@nestjs/common';
     PrismaModule,
     ProjectModule,
     FileModule,
-    GatewayModule
+    EventModule,
   ],
 })
 export class AppModule {
