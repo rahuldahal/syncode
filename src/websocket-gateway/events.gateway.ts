@@ -1,4 +1,5 @@
 import { UserService } from './../user/user.service';
+import { FileService } from './../file/file.service';
 import { OnModuleInit } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import {
@@ -17,8 +18,14 @@ interface TInvitationBody {
     id: number;
     username: string;
   };
-  receiver: number;
-  filename: string;
+  receiver: {
+    id: number;
+    username: string;
+  };
+  file: {
+    id: number;
+    name: string;
+  };
 }
 
 interface TConfirmationBody extends TInvitationBody {
@@ -33,11 +40,19 @@ interface TConnectedUsers {
   invitedBy: string | null; // socket ID
 }
 
+interface TFileUpdateBody {
+  id: number;
+  content: string;
+  senderSocketId: string;
+  receiverSocketId: string;
+}
+
 @WebSocketGateway({ cors: { origin: 'http://localhost:5173' } })
 export class EventsGateway implements OnModuleInit {
   constructor(
     private jwt: JwtService,
     private userService: UserService,
+    private fileService: FileService,
   ) {}
 
   @WebSocketServer()
@@ -145,20 +160,16 @@ export class EventsGateway implements OnModuleInit {
 
   @SubscribeMessage('invite')
   handleInvitation(@MessageBody() body: TInvitationBody) {
-    const { sender, receiver, filename } = body;
+    const { sender, receiver, file } = body;
 
-    if (
-      sender === undefined ||
-      receiver === undefined ||
-      filename === undefined
-    ) {
+    if (sender === undefined || receiver === undefined || file === undefined) {
       return;
     }
 
     const senderInfo = this.connectedUsers[sender.id];
     const senderSocketId = this.connectedUsers[sender.id].socketId;
 
-    if (this.connectedUsers[receiver] === undefined) {
+    if (this.connectedUsers[receiver.id] === undefined) {
       this.server
         .to(senderSocketId)
         .emit('onInvitation', 'The receiver is not connected');
@@ -166,7 +177,7 @@ export class EventsGateway implements OnModuleInit {
       return;
     }
 
-    const receiverSocketId = this.connectedUsers[receiver].socketId;
+    const receiverSocketId = this.connectedUsers[receiver.id].socketId;
 
     if (senderSocketId === undefined) {
       return;
@@ -181,14 +192,12 @@ export class EventsGateway implements OnModuleInit {
       return;
     }
 
-    this.connectedUsers[sender.id].hasInvited = receiverSocketId;
-    this.connectedUsers[receiver].invitedBy = senderSocketId;
     this.server.to(receiverSocketId).emit('onInvitation', {
       sender,
       senderSocketId,
       receiver,
       receiverSocketId,
-      filename,
+      file,
     });
 
     return;
@@ -196,19 +205,54 @@ export class EventsGateway implements OnModuleInit {
 
   @SubscribeMessage('confirm')
   handleConfirmation(@MessageBody() body: TConfirmationBody) {
-    const { sender, senderSocketId, receiver, receiverSocketId, filename } =
-      body;
+    const { sender, senderSocketId, receiver, receiverSocketId, file } = body;
 
     if (
       sender === undefined ||
       senderSocketId === undefined ||
       receiver === undefined ||
       receiverSocketId === undefined ||
-      filename === undefined
+      file === undefined
     ) {
       return;
     }
 
     // validate socketIds
+    if (
+      senderSocketId !== this.connectedUsers[sender.id].socketId ||
+      receiverSocketId !== this.connectedUsers[receiver.id].socketId
+    ) {
+      return;
+    }
+
+    this.connectedUsers[sender.id].hasInvited = receiverSocketId;
+    this.connectedUsers[receiver.id].invitedBy = senderSocketId;
+
+    this.server.to(receiverSocketId).emit('collab', { sender, file });
+    this.server.to(senderSocketId).emit('collab', { receiver, file });
+
+    return;
+  }
+
+  @SubscribeMessage('fileUpdate')
+  async handleFileUpdate(@MessageBody() body: TFileUpdateBody) {
+    const { id, content, senderSocketId, receiverSocketId } = body;
+
+    if (id === undefined || content === undefined) {
+      return;
+    }
+
+    try {
+      const updatedContent = await this.fileService.updateContent(id, {
+        content,
+      });
+
+      this.server.to(senderSocketId).emit('updatedContent', updatedContent);
+      this.server.to(receiverSocketId).emit('updatedContent', updatedContent);
+
+      return;
+    } catch (error: unknown) {
+      console.log(error);
+    }
   }
 }
