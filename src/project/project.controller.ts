@@ -1,20 +1,9 @@
-import { Response } from 'express';
 import { User } from '@prisma/client';
 import { CreateProjectDto } from './dto';
 import { AuthGuard } from '@nestjs/passport';
 import { ProjectService } from './project.service';
 import { GetParam, GetUser } from 'src/auth/Decorator';
-import {
-  Body,
-  Controller,
-  Delete,
-  ForbiddenException,
-  Get,
-  NotFoundException,
-  Post,
-  Res,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Post, UseGuards } from '@nestjs/common';
 
 import {
   ApiBearerAuth,
@@ -24,7 +13,6 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { handleHttpError } from 'src/utils';
 
 @ApiTags('projects')
 @Controller('projects')
@@ -41,7 +29,7 @@ export class ProjectController {
   })
   @ApiOkResponse({ description: 'User information updated successfully' })
   @Post('/')
-  createProject(@Body() dto: CreateProjectDto, @GetUser() user: User) {
+  async createProject(@Body() dto: CreateProjectDto, @GetUser() user: User) {
     return this.projectService.createProject(user, dto);
   }
 
@@ -53,7 +41,7 @@ export class ProjectController {
     description: 'Projects found successfully',
   })
   @Get('/')
-  findAllProjects(@GetUser() user: User) {
+  async findAllProjects(@GetUser() user: User) {
     return this.projectService.getAllProjects(user.id);
   }
 
@@ -65,16 +53,7 @@ export class ProjectController {
     description: 'Deleted project successfully',
   })
   @Delete('/:id')
-  deleteProject(
-    @GetParam('id') id: string,
-    @GetUser() user: User,
-    @Res() response: Response,
-  ) {
-    try {
-      return this.projectService.deleteProject(parseInt(id), user.id);
-      // return response.sendStatus(200);
-    } catch (error) {
-      handleHttpError(response, error);
-    }
+  async deleteProject(@GetParam('id') id: string, @GetUser() user: User) {
+    this.projectService.deleteProject(parseInt(id), user.id);
   }
 }
