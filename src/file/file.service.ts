@@ -25,7 +25,7 @@ export class FileService {
       return file;
     } catch (error) {
       console.log(error);
-      throw InternalServerErrorException;
+      throw new InternalServerErrorException();
     }
   }
 
@@ -38,15 +38,19 @@ export class FileService {
         },
       });
 
+      if (!file) {
+        throw new NotFoundException();
+      }
+
       // Return the found file
       return file;
     } catch (error) {
       console.log(error);
-      throw InternalServerErrorException;
+      throw new InternalServerErrorException();
     }
   }
 
-  // Get te content
+  // Update the content
   async updateContent(id: number, data: UpdateContentDto) {
     try {
       const updatedFile = await this.prisma.file.update({
@@ -54,10 +58,14 @@ export class FileService {
         data,
       });
 
-      return updatedFile;
+      if (!updatedFile) {
+        throw new NotFoundException();
+      }
+
+      return { updatedContent: updatedFile.content };
     } catch (error) {
       console.log(error);
-      throw InternalServerErrorException;
+      throw new InternalServerErrorException();
     }
   }
 }

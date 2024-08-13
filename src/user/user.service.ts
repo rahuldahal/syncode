@@ -1,14 +1,13 @@
 import * as argon from 'argon2';
-import { User } from '@prisma/client';
 import { UpdatePasswordDto, UpdateUserDto } from './dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { GenericDTO, GenericObject, errorMessages } from 'src/constants/index';
 import {
   ForbiddenException,
   Injectable,
-  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
+import { TUser } from './user.type';
 
 @Injectable()
 export class UserService {
@@ -47,8 +46,7 @@ export class UserService {
     };
   }
 
-  // TODO: make generic and reusable
-  async update(userId: User['id'], data: Partial<User>): Promise<User> {
+  async updateUser(userId: TUser['id'], dto: UpdateUserDto): Promise<TUser> {
     const user = await this.prisma.user.findUnique({
       where: {
         id: userId,
@@ -61,28 +59,15 @@ export class UserService {
 
     const updatedUser = await this.prisma.user.update({
       where: { id: userId },
-      data,
+      data: dto,
     });
 
-    return updatedUser;
+    const { password, ...withoutPassword } = updatedUser;
+
+    return withoutPassword;
   }
 
-  async updateUser(dto: UpdateUserDto, userId: User['id']) {
-    const data = this.filterData(UpdateUserDto)(dto);
-
-    try {
-      const updatedUser = await this.update(userId, data);
-
-      // TODO: refactor the functionality
-      delete updatedUser.password;
-
-      return updatedUser;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  async updatePassword(dto: UpdatePasswordDto, userId: User['id']) {
+  async updatePassword(dto: UpdatePasswordDto, userId: TUser['id']) {
     try {
       const user = await this.prisma.user.findUnique({
         where: {
@@ -114,26 +99,6 @@ export class UserService {
     }
   }
 
-  async findByUsername(username: string) {
-    try {
-      const user = await this.prisma.user.findUnique({
-        where: {
-          username,
-        },
-      });
-
-      if (!user) {
-        throw new NotFoundException(errorMessages.NO_USER);
-      }
-
-      const { password, ...withoutPassword } = user;
-
-      return withoutPassword;
-    } catch (error) {
-      throw error;
-    }
-  }
-
   async findByUsernameContaining(searchString: string) {
     try {
       const users = await this.prisma.user.findMany({
@@ -146,7 +111,7 @@ export class UserService {
       });
 
       if (!users || users.length === 0) {
-        return null;
+        throw new NotFoundException();
       }
 
       const cleanedUpData = users.map((user) => {

@@ -1,16 +1,12 @@
+import { TUserBase } from 'src/user/user.type';
+
 export interface TSearchBody {
   username: string;
 }
 
 export interface TInvitationBody {
-  sender: {
-    id: number;
-    username: string;
-  };
-  receiver: {
-    id: number;
-    username: string;
-  };
+  sender: TUserBase;
+  receiver: TUserBase;
   file: {
     id: number;
     name: string;
@@ -32,6 +28,6 @@ export interface TConnectedUsers {
 export interface TFileUpdateBody {
   id: number;
   content: string;
-  senderSocketId: string;
-  receiverSocketId: string;
+  sender: TUserBase;
+  receiver: TUserBase;
 }

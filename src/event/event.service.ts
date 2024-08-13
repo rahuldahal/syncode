@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Server, Socket } from 'socket.io';
+import { TEmitMessage } from './types/emit.type';
 import { UserService } from '../user/user.service';
 import { FileService } from 'src/file/file.service';
 import { WebSocketServer } from '@nestjs/websockets';
@@ -11,7 +12,9 @@ import {
   TInvitationBody,
   TFileUpdateBody,
   TConfirmationBody,
-} from './event.interfaces';
+} from './types/event.type';
+
+// TODO: validate all the body with zod(convert Typescript type into zod type with chatGPT)
 
 export class EventService {
   // TODO: shall move this data into Redis cache
@@ -25,7 +28,7 @@ export class EventService {
   ) {}
 
   @WebSocketServer()
-  server: Server;
+  server: Server<any, TEmitMessage>;
 
   decodeJWT(client: Socket) {
     const authorizationHeader = client.handshake.headers['authorization'];
@@ -74,7 +77,7 @@ export class EventService {
 
       this.server
         .to(hasInvited)
-        .emit('onInvitation', 'The inviter is disconnected');
+        .emit('onInvitation', { message: 'The inviter is disconnected' });
     } else if (invitationStatus === 'invitee') {
       // relation being: This client being a invitee, has relation with the inviter
       // Inviter's perspective: They "hasInvited" this client
@@ -86,10 +89,9 @@ export class EventService {
       // clear data on memory
       this.connectedUsers[inviterClientId].invitationStatus = null;
       this.connectedUsers[inviterClientId].hasInvited = null;
-
       this.server
         .to(invitedBy)
-        .emit('onInvitation', 'The invitee is disconnected');
+        .emit('onInvitation', { message: 'The invitee is disconnected' });
     }
 
     delete this.connectedUsers[disconnectedClientId];
@@ -99,7 +101,7 @@ export class EventService {
     const { username } = body;
 
     if (!username) {
-      this.server.emit('searchResult', { message: 'Username not provided' });
+      this.server.emit('onSearchResult', { message: 'Username not provided' });
       return;
     }
 
@@ -108,12 +110,12 @@ export class EventService {
         await this.userService.findByUsernameContaining(username);
 
       if (searchResult && searchResult.length > 0) {
-        this.server.emit('searchResult', searchResult);
+        this.server.emit('onSearchResult', searchResult);
       } else {
-        this.server.emit('searchResult', { message: 'User not found' });
+        this.server.emit('onSearchResult', { message: 'User not found' });
       }
     } catch (error) {
-      this.server.emit('searchResult', {
+      this.server.emit('onSearchResult', {
         message: 'An error occurred',
         error: error.message,
       });
@@ -133,7 +135,7 @@ export class EventService {
     if (this.connectedUsers[receiver.id] === undefined) {
       this.server
         .to(senderSocketId)
-        .emit('onInvitation', 'The receiver is not connected');
+        .emit('onInvitation', { message: 'The receiver is not connected' });
 
       return;
     }
@@ -148,16 +150,14 @@ export class EventService {
     if (senderInfo.invitationStatus) {
       this.server
         .to(senderSocketId)
-        .emit('onInvitation', 'Already in a connection');
+        .emit('onInvitation', { message: 'Already in a connection' });
 
       return;
     }
 
     this.server.to(receiverSocketId).emit('onInvitation', {
       sender,
-      senderSocketId,
       receiver,
-      receiverSocketId,
       file,
     });
 
@@ -165,49 +165,57 @@ export class EventService {
   }
 
   handleConfirmation(body: TConfirmationBody) {
-    const { sender, senderSocketId, receiver, receiverSocketId, file } = body;
+    const { sender, receiver, file } = body;
 
+    if (sender === undefined || receiver === undefined || file === undefined) {
+      return;
+    }
+
+    // check if user is connected
     if (
-      sender === undefined ||
-      senderSocketId === undefined ||
-      receiver === undefined ||
-      receiverSocketId === undefined ||
-      file === undefined
+      this.connectedUsers[sender.id] === undefined ||
+      this.connectedUsers[receiver.id] === undefined
     ) {
       return;
     }
 
-    // validate socketIds
-    if (
-      senderSocketId !== this.connectedUsers[sender.id].socketId ||
-      receiverSocketId !== this.connectedUsers[receiver.id].socketId
-    ) {
-      return;
-    }
+    const senderSocketId = this.connectedUsers[sender.id].socketId;
+    const receiverSocketId = this.connectedUsers[receiver.id].socketId;
 
     this.connectedUsers[sender.id].hasInvited = receiverSocketId;
     this.connectedUsers[receiver.id].invitedBy = senderSocketId;
 
-    this.server.to(receiverSocketId).emit('collab', { sender, file });
-    this.server.to(senderSocketId).emit('collab', { receiver, file });
+    this.server.to(receiverSocketId).emit('onCollab', { sender, file });
+    this.server.to(senderSocketId).emit('onCollab', { receiver, file });
 
     return;
   }
 
   async handleFileUpdate(body: TFileUpdateBody) {
-    const { id, content, senderSocketId, receiverSocketId } = body;
+    const { id, content, sender, receiver } = body;
 
     if (id === undefined || content === undefined) {
       return;
     }
+
+    // check if user is connected
+    if (
+      this.connectedUsers[sender.id] === undefined ||
+      this.connectedUsers[receiver.id] === undefined
+    ) {
+      return;
+    }
+
+    const senderSocketId = this.connectedUsers[sender.id].socketId;
+    const receiverSocketId = this.connectedUsers[receiver.id].socketId;
 
     try {
       const updatedContent = await this.fileService.updateContent(id, {
         content,
       });
 
-      this.server.to(senderSocketId).emit('updatedContent', updatedContent);
-      this.server.to(receiverSocketId).emit('updatedContent', updatedContent);
+      this.server.to(senderSocketId).emit('onFileUpdate', updatedContent);
+      this.server.to(receiverSocketId).emit('onFileUpdate', updatedContent);
 
       return;
     } catch (error: unknown) {
