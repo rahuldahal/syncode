@@ -1,5 +1,6 @@
 import { Server, Socket } from 'socket.io';
 import { OnModuleInit } from '@nestjs/common';
+import { TEmitInfo } from './types/emit.type';
 import { EventService } from './event.service';
 
 import {
@@ -25,6 +26,11 @@ export class EventGateway implements OnModuleInit {
   @WebSocketServer()
   server: Server;
 
+  emit({ receiver, messageName, messageValue }: TEmitInfo): void {
+    this.server.to(receiver).emit(messageName, messageValue);
+    return;
+  }
+
   onModuleInit() {
     this.server.on('connection', (socket: Socket) => {
       const user = this.eventService.decodeJWT(socket);
@@ -43,7 +49,8 @@ export class EventGateway implements OnModuleInit {
 
   @SubscribeMessage('invite')
   handleInvitation(@MessageBody() body: TInvitationBody) {
-    this.eventService.handleInvitation(body);
+    const emitInfo = this.eventService.handleInvitation(body);
+    return this.emit(emitInfo);
   }
 
   @SubscribeMessage('confirm')

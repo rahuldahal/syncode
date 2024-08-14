@@ -1,10 +1,9 @@
-import { Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Server, Socket } from 'socket.io';
-import { TEmitMessage } from './types/emit.type';
+import { TEmitInfo } from './types/emit.type';
 import { UserService } from '../user/user.service';
+import { Injectable, Logger } from '@nestjs/common';
 import { FileService } from 'src/file/file.service';
-import { WebSocketServer } from '@nestjs/websockets';
 
 import {
   TSearchBody,
@@ -16,19 +15,20 @@ import {
 
 // TODO: validate all the body with zod(convert Typescript type into zod type with chatGPT)
 
+@Injectable()
 export class EventService {
   // TODO: shall move this data into Redis cache
   private connectedUsers: { [id: string]: TConnectedUsers } = {}; // {"16": {socketId: "5sAK2BUIC2gRT_QqAAAB", beenInviteded: true, invitedBy: "PoykztaXOAYH8MJ9AAAD", hasInvited: XoykztaXOAYH8MJ9AAAD}
   private logger = new Logger('event-service');
 
   constructor(
-    private jwt: JwtService,
+    private jwtService: JwtService,
     private userService: UserService,
     private fileService: FileService,
   ) {}
 
-  @WebSocketServer()
-  server: Server<any, TEmitMessage>;
+  // TODO: remove this
+  server: Server;
 
   decodeJWT(client: Socket) {
     const authorizationHeader = client.handshake.headers['authorization'];
@@ -36,7 +36,7 @@ export class EventService {
       throw new Error('Authorization header missing or invalid');
     }
     const token = authorizationHeader.split(' ')[1];
-    const decoded = this.jwt.decode(token); // {sub: id, username, iat: created, exp: expiry}
+    const decoded = this.jwtService.decode(token); // {sub: id, username, iat: created, exp: expiry}
 
     return { id: decoded.sub, username: decoded.username };
   }
@@ -124,20 +124,21 @@ export class EventService {
 
   handleInvitation(body: TInvitationBody) {
     const { sender, receiver, file } = body;
-
-    if (sender === undefined || receiver === undefined || file === undefined) {
-      return;
-    }
+    const emitInfo: TEmitInfo = {
+      receiver: null,
+      messageName: null,
+      messageValue: null,
+    };
 
     const senderInfo = this.connectedUsers[sender.id];
     const senderSocketId = this.connectedUsers[sender.id].socketId;
 
     if (this.connectedUsers[receiver.id] === undefined) {
-      this.server
-        .to(senderSocketId)
-        .emit('onInvitation', { message: 'The receiver is not connected' });
+      emitInfo.receiver = senderSocketId;
+      emitInfo.messageName = 'onInvitation';
+      emitInfo.messageValue = 'The receiver is not connected';
 
-      return;
+      return emitInfo;
     }
 
     const receiverSocketId = this.connectedUsers[receiver.id].socketId;
