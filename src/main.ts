@@ -2,7 +2,7 @@ import { AppModule } from './app.module';
 import setupSwagger from './docs/swagger';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { Redirect } from './middlewares/redirect.middleware';
 import { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
 import { HttpExceptionFilter } from './utils/http-exception.filter';
@@ -40,5 +40,7 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT') || 8888;
   await app.listen(port);
+
+  new Logger('main').log(`Server is listening on port: ${port}`);
 }
 bootstrap();
