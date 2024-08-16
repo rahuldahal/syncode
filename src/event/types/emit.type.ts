@@ -1,5 +1,6 @@
 import { TUserBase } from 'src/user/user.type';
 import { TConfirmationBody, TInvitationBody } from './event.type';
+type TError = 'Internal serval error';
 
 // HandleDisconnect method
 type TDisconnectionResult =
@@ -14,51 +15,42 @@ type TUserNotFoundResult = 'User not found';
 
 type TSearchResult = TUserBase[];
 
-interface TErrorResult {
-  message: 'An error occurred';
-  error: string; // Error message
-}
-
 type TSearchResultEmit =
   | TUsernameNotProvidedResult
   | TUserNotFoundResult
   | TSearchResult
-  | TErrorResult;
+  | TError;
 
 // HandleInvitation method
 type TReceiverNotConnectedResult = 'The receiver is not connected';
 type TAlreadyInConnectionResult = 'Already in a connection';
+type TInvalidaData = 'Provided data is invalid';
 
 type TInvitationEmit =
   | TReceiverNotConnectedResult
   | TAlreadyInConnectionResult
-  | TInvitationBody;
+  | TInvitationBody
+  | TError;
 
 // HandleConfirmation method
 
-type TConfirmationSender = {
+type TConfirmationMessage = {
   sender: TConfirmationBody['sender'];
-  file: TConfirmationBody['file'];
-};
-
-type TConfirmationReceiver = {
   receiver: TConfirmationBody['receiver'];
   file: TConfirmationBody['file'];
+  invitationStatus: 'inviter' | 'invitee';
 };
 
-type TConfirmationEmit = TConfirmationSender | TConfirmationReceiver;
+type TConfirmationEmit =
+  | TConfirmationMessage
+  | TAlreadyInConnectionResult
+  | TInvalidaData
+  | TError;
 
 // HandleFileUpdate method
-interface TFileUpdateSuccess {
-  updatedContent: string;
-}
+type TFileUpdateSuccess = string;
 
-interface TFileUpdateError {
-  message: 'An error occurred';
-  error: string; // Error message
-}
-
-type TFileUpdateEmit = TFileUpdateSuccess | TFileUpdateError;
+type TFileUpdateEmit = TFileUpdateSuccess | TError;
 
 type TEmitMessage =
   | {
@@ -66,10 +58,16 @@ type TEmitMessage =
       messageValue: TDisconnectionResult | TInvitationEmit;
     }
   | { messageName: 'onSearchResult'; messageValue: TSearchResultEmit }
-  | { messageName: 'onCollab'; messageValue: TConfirmationEmit }
-  | { messageName: 'onFileUpdate'; messageValue: TFileUpdateEmit }
+  | {
+      messageName: 'onCollab';
+      messageValue: TConfirmationEmit;
+    }
+  | {
+      messageName: 'onFileUpdate';
+      messageValue: TFileUpdateEmit;
+    }
   | null;
 
 export type TEmitInfo = {
-  receiver: string | null;
+  receiver: string | [string, string] | null;
 } & TEmitMessage;

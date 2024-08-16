@@ -1,5 +1,5 @@
+import { Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
-import { Server, Socket } from 'socket.io';
 import { TEmitInfo } from './types/emit.type';
 import { UserService } from '../user/user.service';
 import { Injectable, Logger } from '@nestjs/common';
@@ -27,9 +27,6 @@ export class EventService {
     private fileService: FileService,
   ) {}
 
-  // TODO: remove this
-  server: Server;
-
   decodeJWT(client: Socket) {
     const authorizationHeader = client.handshake.headers['authorization'];
     if (!authorizationHeader || !authorizationHeader.startsWith('Bearer ')) {
@@ -53,6 +50,12 @@ export class EventService {
   }
 
   handleDisconnect(client: Socket) {
+    const emitInfo: TEmitInfo = {
+      receiver: null,
+      messageName: null,
+      messageValue: null,
+    };
+
     const connectedUsersId = Object.keys(this.connectedUsers);
     const disconnectedClientId = connectedUsersId.find(
       (id) => this.connectedUsers[id].socketId === client.id,
@@ -75,9 +78,11 @@ export class EventService {
       this.connectedUsers[inviteeClientId].invitationStatus = null;
       this.connectedUsers[inviteeClientId].invitedBy = null;
 
-      this.server
-        .to(hasInvited)
-        .emit('onInvitation', { message: 'The inviter is disconnected' });
+      emitInfo.receiver = hasInvited;
+      emitInfo.messageName = 'onInvitation';
+      emitInfo.messageValue = 'The inviter is disconnected';
+
+      return emitInfo;
     } else if (invitationStatus === 'invitee') {
       // relation being: This client being a invitee, has relation with the inviter
       // Inviter's perspective: They "hasInvited" this client
@@ -89,20 +94,29 @@ export class EventService {
       // clear data on memory
       this.connectedUsers[inviterClientId].invitationStatus = null;
       this.connectedUsers[inviterClientId].hasInvited = null;
-      this.server
-        .to(invitedBy)
-        .emit('onInvitation', { message: 'The invitee is disconnected' });
+
+      emitInfo.receiver = hasInvited;
+      emitInfo.messageName = 'onInvitation';
+      emitInfo.messageValue = 'The invitee is disconnected';
+
+      return emitInfo;
     }
 
     delete this.connectedUsers[disconnectedClientId];
   }
 
-  async handleSearch(body: TSearchBody) {
+  async handleSearch(body: TSearchBody, client: Socket) {
     const { username } = body;
 
+    const emitInfo: TEmitInfo = {
+      receiver: client.id,
+      messageName: 'onSearchResult',
+      messageValue: null,
+    };
+
     if (!username) {
-      this.server.emit('onSearchResult', { message: 'Username not provided' });
-      return;
+      emitInfo.messageValue = 'Username not provided';
+      return emitInfo;
     }
 
     try {
@@ -110,63 +124,76 @@ export class EventService {
         await this.userService.findByUsernameContaining(username);
 
       if (searchResult && searchResult.length > 0) {
-        this.server.emit('onSearchResult', searchResult);
-      } else {
-        this.server.emit('onSearchResult', { message: 'User not found' });
+        emitInfo.messageValue = searchResult;
+        return emitInfo;
       }
+
+      emitInfo.messageValue = 'User not found';
+      return emitInfo;
     } catch (error) {
-      this.server.emit('onSearchResult', {
-        message: 'An error occurred',
-        error: error.message,
-      });
+      emitInfo.messageValue = 'Internal serval error';
     }
   }
 
-  handleInvitation(body: TInvitationBody) {
+  handleInvitation(body: TInvitationBody, client: Socket) {
     const { sender, receiver, file } = body;
     const emitInfo: TEmitInfo = {
       receiver: null,
-      messageName: null,
+      messageName: 'onInvitation',
       messageValue: null,
     };
 
-    const senderInfo = this.connectedUsers[sender.id];
-    const senderSocketId = this.connectedUsers[sender.id].socketId;
+    const currentUserId = Object.keys(this.connectedUsers).find(
+      (user) => (this.connectedUsers[user].socketId = client.id),
+    );
 
-    if (this.connectedUsers[receiver.id] === undefined) {
-      emitInfo.receiver = senderSocketId;
-      emitInfo.messageName = 'onInvitation';
-      emitInfo.messageValue = 'The receiver is not connected';
+    // if sender is already in a connection
+    if (this.connectedUsers[currentUserId].invitationStatus !== null) {
+      emitInfo.receiver = client.id;
+      emitInfo.messageValue = 'Already in a connection';
 
       return emitInfo;
     }
 
-    const receiverSocketId = this.connectedUsers[receiver.id].socketId;
+    const receiverInfo = this.connectedUsers[receiver.id];
+    const senderSocketId = this.connectedUsers[sender.id].socketId;
+
+    if (receiverInfo === undefined) {
+      emitInfo.receiver = senderSocketId;
+      emitInfo.messageValue = 'The receiver is not connected';
+
+      return emitInfo;
+    }
 
     if (senderSocketId === undefined) {
       return;
     }
 
     // if receiver is already been invited
-    if (senderInfo.invitationStatus) {
-      this.server
-        .to(senderSocketId)
-        .emit('onInvitation', { message: 'Already in a connection' });
+    if (receiverInfo.invitationStatus) {
+      emitInfo.receiver = senderSocketId;
+      emitInfo.messageValue = 'Already in a connection';
 
-      return;
+      return emitInfo;
     }
 
-    this.server.to(receiverSocketId).emit('onInvitation', {
+    emitInfo.receiver = this.connectedUsers[receiver.id].socketId;
+    emitInfo.messageValue = {
       sender,
       receiver,
       file,
-    });
+    };
 
-    return;
+    return emitInfo;
   }
 
-  handleConfirmation(body: TConfirmationBody) {
+  handleConfirmation(body: TConfirmationBody, client: Socket) {
     const { sender, receiver, file } = body;
+    const emitInfo: TEmitInfo = {
+      receiver: null,
+      messageName: 'onCollab',
+      messageValue: null,
+    };
 
     if (sender === undefined || receiver === undefined || file === undefined) {
       return;
@@ -177,23 +204,60 @@ export class EventService {
       this.connectedUsers[sender.id] === undefined ||
       this.connectedUsers[receiver.id] === undefined
     ) {
-      return;
+      emitInfo.receiver = client.id;
+      emitInfo.messageValue = 'Provided data is invalid';
+
+      return emitInfo;
+    }
+
+    // check if collaborator(current user) is the on that was invited
+    if (client.id !== this.connectedUsers[receiver.id].socketId) {
+      emitInfo.receiver = client.id;
+      emitInfo.messageValue = 'Provided data is invalid';
+
+      return emitInfo;
+    }
+
+    const currentUserId = Object.keys(this.connectedUsers).find(
+      (user) => (this.connectedUsers[user].socketId = client.id),
+    );
+    const currentUserStatus =
+      this.connectedUsers[currentUserId].invitationStatus;
+
+    // check if already in collaboration
+    if (currentUserStatus !== null) {
+      emitInfo.receiver = client.id;
+      emitInfo.messageValue = 'Already in a connection';
+
+      return emitInfo;
     }
 
     const senderSocketId = this.connectedUsers[sender.id].socketId;
     const receiverSocketId = this.connectedUsers[receiver.id].socketId;
 
     this.connectedUsers[sender.id].hasInvited = receiverSocketId;
+    this.connectedUsers[sender.id].invitationStatus = 'inviter';
     this.connectedUsers[receiver.id].invitedBy = senderSocketId;
+    this.connectedUsers[receiver.id].invitationStatus = 'invitee';
 
-    this.server.to(receiverSocketId).emit('onCollab', { sender, file });
-    this.server.to(senderSocketId).emit('onCollab', { receiver, file });
+    emitInfo.receiver = [receiverSocketId, senderSocketId];
+    emitInfo.messageValue = {
+      sender,
+      receiver,
+      file,
+      invitationStatus: currentUserStatus,
+    };
 
-    return;
+    return emitInfo;
   }
 
-  async handleFileUpdate(body: TFileUpdateBody) {
+  async handleFileUpdate(body: TFileUpdateBody, client: Socket) {
     const { id, content, sender, receiver } = body;
+    const emitInfo: TEmitInfo = {
+      receiver: null,
+      messageName: 'onFileUpdate',
+      messageValue: null,
+    };
 
     if (id === undefined || content === undefined) {
       return;
@@ -211,16 +275,16 @@ export class EventService {
     const receiverSocketId = this.connectedUsers[receiver.id].socketId;
 
     try {
-      const updatedContent = await this.fileService.updateContent(id, {
+      const { updatedContent } = await this.fileService.updateContent(id, {
         content,
       });
 
-      this.server.to(senderSocketId).emit('onFileUpdate', updatedContent);
-      this.server.to(receiverSocketId).emit('onFileUpdate', updatedContent);
+      emitInfo.receiver = [senderSocketId, receiverSocketId];
+      emitInfo.messageValue = updatedContent;
 
-      return;
-    } catch (error: unknown) {
-      console.log(error);
+      return emitInfo;
+    } catch (error: any) {
+      this.logger.error(error.message);
     }
   }
 }

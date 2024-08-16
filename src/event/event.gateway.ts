@@ -4,6 +4,7 @@ import { TEmitInfo } from './types/emit.type';
 import { EventService } from './event.service';
 
 import {
+  ConnectedSocket,
   MessageBody,
   SubscribeMessage,
   WebSocketGateway,
@@ -39,27 +40,43 @@ export class EventGateway implements OnModuleInit {
   }
 
   handleDisconnect(client: Socket): void {
-    this.eventService.handleDisconnect(client);
+    const emitInfo = this.eventService.handleDisconnect(client);
+    return emitInfo ? this.emit(emitInfo) : null;
   }
 
   @SubscribeMessage('search')
-  handleSearch(@MessageBody() body: TSearchBody) {
-    this.eventService.handleSearch(body);
+  async handleSearch(
+    @MessageBody() body: TSearchBody,
+    @ConnectedSocket() client: Socket,
+  ) {
+    const emitInfo = await this.eventService.handleSearch(body, client);
+    return emitInfo ? this.emit(emitInfo) : null;
   }
 
   @SubscribeMessage('invite')
-  handleInvitation(@MessageBody() body: TInvitationBody) {
-    const emitInfo = this.eventService.handleInvitation(body);
-    return this.emit(emitInfo);
+  handleInvitation(
+    @MessageBody() body: TInvitationBody,
+    @ConnectedSocket() client: Socket,
+  ) {
+    const emitInfo = this.eventService.handleInvitation(body, client);
+    return emitInfo ? this.emit(emitInfo) : null;
   }
 
   @SubscribeMessage('confirm')
-  handleConfirmation(@MessageBody() body: TConfirmationBody) {
-    this.eventService.handleConfirmation(body);
+  handleConfirmation(
+    @MessageBody() body: TConfirmationBody,
+    @ConnectedSocket() client: Socket,
+  ) {
+    const emitInfo = this.eventService.handleConfirmation(body, client);
+    return emitInfo ? this.emit(emitInfo) : null;
   }
 
   @SubscribeMessage('fileUpdate')
-  handleFileUpdate(@MessageBody() body: TFileUpdateBody) {
-    this.eventService.handleFileUpdate(body);
+  async handleFileUpdate(
+    @MessageBody() body: TFileUpdateBody,
+    @ConnectedSocket() client: Socket,
+  ) {
+    const emitInfo = await this.eventService.handleFileUpdate(body, client);
+    return emitInfo ? this.emit(emitInfo) : null;
   }
 }
