@@ -1,7 +1,8 @@
+import { EventAuth } from './../auth/event-guard/event.middleware';
 import { Server, Socket } from 'socket.io';
-import { OnModuleInit } from '@nestjs/common';
 import { TEmitInfo } from './types/emit.type';
 import { EventService } from './event.service';
+import { OnModuleInit, UseGuards } from '@nestjs/common';
 
 import {
   ConnectedSocket,
@@ -16,13 +17,19 @@ import {
   TInvitationBody,
   TConfirmationBody,
 } from './types/event.type';
+import { EventJwtGuard } from 'src/auth/event-guard/event-jwt.guard';
+import { ConfigService } from '@nestjs/config';
 
 @WebSocketGateway({
   cors: { origin: 'http://localhost:5173' },
   namespace: 'collaboration',
 })
-export class EventGateway implements OnModuleInit {
-  constructor(private eventService: EventService) {}
+@UseGuards(EventJwtGuard)
+export class EventGateway {
+  constructor(
+    private eventService: EventService,
+    private configService: ConfigService,
+  ) {}
 
   @WebSocketServer()
   server: Server;
@@ -32,11 +39,16 @@ export class EventGateway implements OnModuleInit {
     return;
   }
 
-  onModuleInit() {
-    this.server.on('connection', (socket: Socket) => {
-      const user = this.eventService.decodeJWT(socket);
-      this.eventService.addConnectedUser(socket, user);
-    });
+  // onModuleInit() {
+  //   this.server.on('connection', (socket: Socket) => {
+  //     const user = this.eventService.decodeJWT(socket);
+  //     this.eventService.addConnectedUser(socket, user);
+  //   });
+  // }
+
+  afterInit(client: Socket) {
+    client.use(EventAuth(this.configService) as any);
+    console.log('After init');
   }
 
   handleDisconnect(client: Socket): void {
