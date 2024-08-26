@@ -3,7 +3,11 @@ import { JwtService } from '@nestjs/jwt';
 import { signInDto, signUpDto } from './dto';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PICTURE_API, duration, errorMessages } from 'src/constants';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
@@ -12,7 +16,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
-    private config: ConfigService
+    private config: ConfigService,
   ) {}
 
   async signUp(dto: signUpDto) {
@@ -60,7 +64,7 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new ForbiddenException(errorMessages.NO_USER);
+      throw new NotFoundException(errorMessages.NO_USER);
     }
 
     // compare password
@@ -83,7 +87,7 @@ export class AuthService {
 
     return this.jwt.signAsync(payload, {
       secret: this.config.get('JWT_SECRET'),
-      expiresIn: duration.FIFTEEEN_MINUTES,
+      // expiresIn: duration.FIFTEEEN_MINUTES,
     });
   }
 }
