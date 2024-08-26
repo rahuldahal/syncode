@@ -29,20 +29,13 @@ type TInvalidaData = 'Provided data is invalid';
 type TInvitationEmit =
   | TReceiverNotConnectedResult
   | TAlreadyInConnectionResult
-  | TInvitationBody
+  | TConfirmationBody
   | TError;
 
 // HandleConfirmation method
 
-type TConfirmationMessage = {
-  sender: TConfirmationBody['sender'];
-  receiver: TConfirmationBody['receiver'];
-  file: TConfirmationBody['file'];
-  invitationStatus: 'inviter' | 'invitee';
-};
-
 type TConfirmationEmit =
-  | TConfirmationMessage
+  | TConfirmationBody
   | TAlreadyInConnectionResult
   | TInvalidaData
   | TError;

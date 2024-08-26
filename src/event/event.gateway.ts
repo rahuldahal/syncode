@@ -1,12 +1,17 @@
-import { EventAuth } from './../auth/event-guard/event.middleware';
 import { Server, Socket } from 'socket.io';
+import { UseGuards } from '@nestjs/common';
 import { TEmitInfo } from './types/emit.type';
 import { EventService } from './event.service';
-import { OnModuleInit, UseGuards } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { EventAuth } from './../auth/event-guard/event.middleware';
+import { EventJwtGuard } from 'src/auth/event-guard/event-jwt.guard';
 
 import {
   ConnectedSocket,
   MessageBody,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+  OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
@@ -17,15 +22,15 @@ import {
   TInvitationBody,
   TConfirmationBody,
 } from './types/event.type';
-import { EventJwtGuard } from 'src/auth/event-guard/event-jwt.guard';
-import { ConfigService } from '@nestjs/config';
 
 @WebSocketGateway({
   cors: { origin: 'http://localhost:5173' },
   namespace: 'collaboration',
 })
 @UseGuards(EventJwtGuard)
-export class EventGateway {
+export class EventGateway
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
   constructor(
     private eventService: EventService,
     private configService: ConfigService,
@@ -39,16 +44,18 @@ export class EventGateway {
     return;
   }
 
-  // onModuleInit() {
-  //   this.server.on('connection', (socket: Socket) => {
-  //     const user = this.eventService.decodeJWT(socket);
-  //     this.eventService.addConnectedUser(socket, user);
-  //   });
-  // }
+  handleConnection(client: Socket) {
+    console.log('on connection');
+    const user = this.eventService.decodeJWT(client);
+    this.eventService.addConnectedUser(client, user);
+  }
 
   afterInit(client: Socket) {
+    console.log('on after init');
+
     client.use(EventAuth(this.configService) as any);
-    console.log('After init');
+    // const user = this.eventService.decodeJWT(client);
+    // this.eventService.addConnectedUser(client, user);
   }
 
   handleDisconnect(client: Socket): void {

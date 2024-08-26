@@ -29,9 +29,6 @@ export class EventService {
 
   decodeJWT(client: Socket) {
     const authorizationHeader = client.handshake.headers['authorization'];
-    if (!authorizationHeader || !authorizationHeader.startsWith('Bearer ')) {
-      throw new Error('Authorization header missing or invalid');
-    }
     const token = authorizationHeader.split(' ')[1];
     const decoded = this.jwtService.decode(token); // {sub: id, username, iat: created, exp: expiry}
 
@@ -144,7 +141,7 @@ export class EventService {
     };
 
     const currentUserId = Object.keys(this.connectedUsers).find(
-      (user) => (this.connectedUsers[user].socketId = client.id),
+      (user) => this.connectedUsers[user].socketId === client.id,
     );
 
     // if sender is already in a connection
@@ -182,13 +179,15 @@ export class EventService {
       sender,
       receiver,
       file,
+      senderSocketId,
+      receiverSocketId: receiverInfo.socketId,
     };
 
     return emitInfo;
   }
 
   handleConfirmation(body: TConfirmationBody, client: Socket) {
-    const { sender, receiver, file } = body;
+    const { sender, receiver, file, senderSocketId, receiverSocketId } = body;
     const emitInfo: TEmitInfo = {
       receiver: null,
       messageName: 'onCollab',
@@ -210,7 +209,7 @@ export class EventService {
       return emitInfo;
     }
 
-    // check if collaborator(current user) is the on that was invited
+    // check if collaborator(current user) is the one that was invited
     if (client.id !== this.connectedUsers[receiver.id].socketId) {
       emitInfo.receiver = client.id;
       emitInfo.messageValue = 'Provided data is invalid';
@@ -219,65 +218,65 @@ export class EventService {
     }
 
     const currentUserId = Object.keys(this.connectedUsers).find(
-      (user) => (this.connectedUsers[user].socketId = client.id),
+      (user) => this.connectedUsers[user].socketId === client.id,
     );
-    const currentUserStatus =
-      this.connectedUsers[currentUserId].invitationStatus;
 
     // check if already in collaboration
-    if (currentUserStatus !== null) {
+    if (this.connectedUsers[currentUserId].invitationStatus !== null) {
       emitInfo.receiver = client.id;
       emitInfo.messageValue = 'Already in a connection';
 
       return emitInfo;
     }
 
-    const senderSocketId = this.connectedUsers[sender.id].socketId;
-    const receiverSocketId = this.connectedUsers[receiver.id].socketId;
-
     this.connectedUsers[sender.id].hasInvited = receiverSocketId;
     this.connectedUsers[sender.id].invitationStatus = 'inviter';
     this.connectedUsers[receiver.id].invitedBy = senderSocketId;
     this.connectedUsers[receiver.id].invitationStatus = 'invitee';
+
+    // TODO: When token expired, error is thrown by the middleware. Handle it gracefully
 
     emitInfo.receiver = [receiverSocketId, senderSocketId];
     emitInfo.messageValue = {
       sender,
       receiver,
       file,
-      invitationStatus: currentUserStatus,
+      senderSocketId,
+      receiverSocketId,
     };
 
     return emitInfo;
   }
 
   async handleFileUpdate(body: TFileUpdateBody, client: Socket) {
-    const { id, content, sender, receiver } = body;
+    const { file, sender, receiver, senderSocketId, receiverSocketId } = body;
     const emitInfo: TEmitInfo = {
       receiver: null,
       messageName: 'onFileUpdate',
       messageValue: null,
     };
 
-    if (id === undefined || content === undefined) {
+    if (file.id === undefined || file.content === undefined) {
       return;
     }
+    this.logger.log(this.connectedUsers);
 
     // check if user is connected
     if (
       this.connectedUsers[sender.id] === undefined ||
       this.connectedUsers[receiver.id] === undefined
     ) {
-      return;
+      emitInfo.receiver = client.id;
+      emitInfo.messageValue = 'Provided data is invalid';
+
+      return emitInfo;
     }
 
-    const senderSocketId = this.connectedUsers[sender.id].socketId;
-    const receiverSocketId = this.connectedUsers[receiver.id].socketId;
-
     try {
-      const { updatedContent } = await this.fileService.updateContent(id, {
-        content,
-      });
+      const { updatedContent } = await this.fileService.updateContent(
+        file.id,
+        file,
+      );
 
       emitInfo.receiver = [senderSocketId, receiverSocketId];
       emitInfo.messageValue = updatedContent;

@@ -25,9 +25,10 @@ export interface TConnectedUsers {
   invitedBy: string | null; // socket ID
 }
 
-export interface TFileUpdateBody {
-  id: number;
-  content: string;
-  sender: TUserBase;
-  receiver: TUserBase;
+export interface TFileUpdateBody extends TConfirmationBody {
+  file: {
+    id: number;
+    name: string;
+    content: string;
+  };
 }
