@@ -8,9 +8,8 @@ import { FileService } from 'src/file/file.service';
 import {
   TSearchBody,
   TConnectedUsers,
-  TInvitationBody,
+  TCollaborationBody,
   TFileUpdateBody,
-  TConfirmationBody,
 } from './types/event.type';
 
 // TODO: validate all the body with zod(convert Typescript type into zod type with chatGPT)
@@ -67,13 +66,10 @@ export class EventService {
     if (invitationStatus === 'inviter') {
       // relation being: This client being a inviter, has relation with the invitee
       // Invitee's perspective: They were "invitedBy" this client
-      const inviteeClientId = connectedUsersId.find(
-        (id) => this.connectedUsers[id].invitedBy === client.id,
-      );
 
       // clear data on memory
-      this.connectedUsers[inviteeClientId].invitationStatus = null;
-      this.connectedUsers[inviteeClientId].invitedBy = null;
+      this.connectedUsers[hasInvited].invitationStatus = null;
+      this.connectedUsers[hasInvited].invitedBy = null;
 
       emitInfo.receiver = hasInvited;
       emitInfo.messageName = 'onInvitation';
@@ -84,15 +80,11 @@ export class EventService {
       // relation being: This client being a invitee, has relation with the inviter
       // Inviter's perspective: They "hasInvited" this client
 
-      const inviterClientId = connectedUsersId.find(
-        (id) => this.connectedUsers[id].hasInvited === client.id,
-      );
-
       // clear data on memory
-      this.connectedUsers[inviterClientId].invitationStatus = null;
-      this.connectedUsers[inviterClientId].hasInvited = null;
+      this.connectedUsers[invitedBy].invitationStatus = null;
+      this.connectedUsers[invitedBy].hasInvited = null;
 
-      emitInfo.receiver = hasInvited;
+      emitInfo.receiver = invitedBy;
       emitInfo.messageName = 'onInvitation';
       emitInfo.messageValue = 'The invitee is disconnected';
 
@@ -132,7 +124,7 @@ export class EventService {
     }
   }
 
-  handleInvitation(body: TInvitationBody, client: Socket) {
+  handleInvitation(body: TCollaborationBody, client: Socket) {
     const { sender, receiver, file } = body;
     const emitInfo: TEmitInfo = {
       receiver: null,
@@ -174,20 +166,22 @@ export class EventService {
       return emitInfo;
     }
 
+    this.connectedUsers[sender.id].invitationStatus = 'pending';
+    this.connectedUsers[receiver.id].invitationStatus = 'pending';
+
     emitInfo.receiver = this.connectedUsers[receiver.id].socketId;
     emitInfo.messageValue = {
       sender,
       receiver,
       file,
-      senderSocketId,
-      receiverSocketId: receiverInfo.socketId,
     };
 
     return emitInfo;
   }
 
-  handleConfirmation(body: TConfirmationBody, client: Socket) {
-    const { sender, receiver, file, senderSocketId, receiverSocketId } = body;
+  // TODO: update collaboratedProjects, and collaborators columns on the database
+  handleConfirmation(body: TCollaborationBody, client: Socket) {
+    const { sender, receiver, file } = body;
     const emitInfo: TEmitInfo = {
       receiver: null,
       messageName: 'onCollab',
@@ -209,8 +203,21 @@ export class EventService {
       return emitInfo;
     }
 
+    if (
+      this.connectedUsers[sender.id].invitationStatus !== 'pending' ||
+      this.connectedUsers[receiver.id].invitationStatus !== 'pending'
+    ) {
+      emitInfo.receiver = client.id;
+      emitInfo.messageValue = 'Provided data is invalid';
+
+      return emitInfo;
+    }
+
+    const receiverSocketId = this.connectedUsers[receiver.id].socketId;
+    const senderSocketId = this.connectedUsers[sender.id].socketId;
+
     // check if collaborator(current user) is the one that was invited
-    if (client.id !== this.connectedUsers[receiver.id].socketId) {
+    if (client.id !== receiverSocketId) {
       emitInfo.receiver = client.id;
       emitInfo.messageValue = 'Provided data is invalid';
 
@@ -222,7 +229,10 @@ export class EventService {
     );
 
     // check if already in collaboration
-    if (this.connectedUsers[currentUserId].invitationStatus !== null) {
+    if (
+      this.connectedUsers[currentUserId].invitationStatus === 'inviter' ||
+      this.connectedUsers[currentUserId].invitationStatus === 'invitee'
+    ) {
       emitInfo.receiver = client.id;
       emitInfo.messageValue = 'Already in a connection';
 
@@ -241,15 +251,13 @@ export class EventService {
       sender,
       receiver,
       file,
-      senderSocketId,
-      receiverSocketId,
     };
 
     return emitInfo;
   }
 
   async handleFileUpdate(body: TFileUpdateBody, client: Socket) {
-    const { file, sender, receiver, senderSocketId, receiverSocketId } = body;
+    const { file, sender, receiver } = body;
     const emitInfo: TEmitInfo = {
       receiver: null,
       messageName: 'onFileUpdate',
@@ -271,6 +279,21 @@ export class EventService {
 
       return emitInfo;
     }
+
+    if (
+      this.connectedUsers[sender.id].invitationStatus === null ||
+      this.connectedUsers[receiver.id].invitationStatus === null ||
+      this.connectedUsers[sender.id].invitationStatus === 'pending' ||
+      this.connectedUsers[receiver.id].invitationStatus === 'pending'
+    ) {
+      emitInfo.receiver = client.id;
+      emitInfo.messageValue = 'Provided data is invalid';
+
+      return emitInfo;
+    }
+
+    const receiverSocketId = this.connectedUsers[receiver.id].socketId;
+    const senderSocketId = this.connectedUsers[sender.id].socketId;
 
     try {
       const { updatedContent } = await this.fileService.updateContent(

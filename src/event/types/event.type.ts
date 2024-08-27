@@ -4,7 +4,8 @@ export interface TSearchBody {
   username: string;
 }
 
-export interface TInvitationBody {
+// TODO: since Invitation and Confirmation body are same, rename to a more generic name
+export interface TCollaborationBody {
   sender: TUserBase;
   receiver: TUserBase;
   file: {
@@ -13,19 +14,14 @@ export interface TInvitationBody {
   };
 }
 
-export interface TConfirmationBody extends TInvitationBody {
-  senderSocketId: string;
-  receiverSocketId: string;
-}
-
 export interface TConnectedUsers {
   socketId: string;
-  invitationStatus: 'inviter' | 'invitee' | null;
+  invitationStatus: 'pending' | 'inviter' | 'invitee' | null;
   hasInvited: string | null; // socket ID
   invitedBy: string | null; // socket ID
 }
 
-export interface TFileUpdateBody extends TConfirmationBody {
+export interface TFileUpdateBody extends TCollaborationBody {
   file: {
     id: number;
     name: string;

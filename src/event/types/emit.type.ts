@@ -1,5 +1,5 @@
 import { TUserBase } from 'src/user/user.type';
-import { TConfirmationBody, TInvitationBody } from './event.type';
+import { TCollaborationBody } from './event.type';
 type TError = 'Internal serval error';
 
 // HandleDisconnect method
@@ -29,13 +29,13 @@ type TInvalidaData = 'Provided data is invalid';
 type TInvitationEmit =
   | TReceiverNotConnectedResult
   | TAlreadyInConnectionResult
-  | TConfirmationBody
+  | TCollaborationBody
   | TError;
 
 // HandleConfirmation method
 
 type TConfirmationEmit =
-  | TConfirmationBody
+  | TCollaborationBody
   | TAlreadyInConnectionResult
   | TInvalidaData
   | TError;

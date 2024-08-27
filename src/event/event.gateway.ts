@@ -19,8 +19,7 @@ import {
 import {
   TSearchBody,
   TFileUpdateBody,
-  TInvitationBody,
-  TConfirmationBody,
+  TCollaborationBody,
 } from './types/event.type';
 
 @WebSocketGateway({
@@ -74,7 +73,7 @@ export class EventGateway
 
   @SubscribeMessage('invite')
   handleInvitation(
-    @MessageBody() body: TInvitationBody,
+    @MessageBody() body: TCollaborationBody,
     @ConnectedSocket() client: Socket,
   ) {
     const emitInfo = this.eventService.handleInvitation(body, client);
@@ -83,7 +82,7 @@ export class EventGateway
 
   @SubscribeMessage('confirm')
   handleConfirmation(
-    @MessageBody() body: TConfirmationBody,
+    @MessageBody() body: TCollaborationBody,
     @ConnectedSocket() client: Socket,
   ) {
     const emitInfo = this.eventService.handleConfirmation(body, client);
