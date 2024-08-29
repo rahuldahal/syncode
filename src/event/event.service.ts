@@ -4,6 +4,7 @@ import { TEmitInfo } from './types/emit.type';
 import { UserService } from '../user/user.service';
 import { Injectable, Logger } from '@nestjs/common';
 import { FileService } from 'src/file/file.service';
+import { getTokenFromCookies } from 'src/utils/socket';
 
 import {
   TSearchBody,
@@ -27,8 +28,9 @@ export class EventService {
   ) {}
 
   decodeJWT(client: Socket) {
-    const authorizationHeader = client.handshake.headers['authorization'];
-    const token = authorizationHeader.split(' ')[1];
+    // const authorizationHeader = client.handshake.headers['authorization']; // while using test tools like Postman
+    const cookies = client.handshake.headers.cookie;
+    const token = getTokenFromCookies(cookies);
     const decoded = this.jwtService.decode(token); // {sub: id, username, iat: created, exp: expiry}
 
     return { id: decoded.sub, username: decoded.username };

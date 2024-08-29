@@ -1,33 +1,30 @@
+import { Socket } from 'socket.io';
+import { ConfigService } from '@nestjs/config';
+import { getTokenFromCookies } from 'src/utils/socket';
+
 import {
   CanActivate,
   ExecutionContext,
   Injectable,
   Logger,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import {
   JsonWebTokenError,
   JwtPayload,
   TokenExpiredError,
   verify,
 } from 'jsonwebtoken';
-import { Observable } from 'rxjs';
-import { Socket } from 'socket.io';
 
 @Injectable()
 export class EventJwtGuard implements CanActivate {
   constructor(private config: ConfigService) {}
 
-  canActivate(
-    context: ExecutionContext,
-  ): boolean | Promise<boolean> | Observable<boolean> {
+  canActivate(context: ExecutionContext): boolean | Promise<boolean> {
     if (context.getType() !== 'ws') {
       return true;
     }
 
     const client: Socket = context.switchToWs().getClient();
-    const { authorization } = client.handshake.headers; // using test tools like Postman
-    // const authorization = client.handshake.auth; // using client side Socket.io
 
     EventJwtGuard.validateToken(client, this.config);
 
@@ -35,18 +32,15 @@ export class EventJwtGuard implements CanActivate {
   }
 
   static validateToken(client: Socket, config: ConfigService) {
-    const { authorization } = client.handshake.headers;
-    Logger.log(authorization);
-    if (!authorization) {
-      throw new Error('Authorization header is missing');
-    }
-    const token: string = authorization.split('Bearer ')[1];
+    const cookies = client.handshake.headers.cookie;
+    const token = getTokenFromCookies(cookies);
+
+    Logger.log(`Token: ${token}`);
     if (!token) {
-      throw new Error('Token is missing from authorization header');
+      throw new Error('Token is missing from cookies');
     }
     try {
       const payload = verify(token, config.get('JWT_SECRET')) as JwtPayload;
-
       return { id: payload.sub, username: payload.username };
     } catch (error) {
       if (error instanceof TokenExpiredError) {
