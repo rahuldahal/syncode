@@ -20,8 +20,9 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Relationships
-  ownedProjects        Project[] @relation(name: "Owner")
-  collaboratedProjects Project[] @relation(name: "Collaborators")
+  ownedProjects        Project[]      @relation(name: "Owner")
+  collaboratedProjects Project[]      @relation(name: "Collaborators")
+  notifications        Notification[] @relation(name: "Notifications")
 }
 
 model Project {
@@ -47,4 +48,19 @@ model File {
   // Relationships
   project   Project @relation(name: "Project", fields: [projectId], references: [id], onDelete: Cascade)
   projectId Int
+}
+
+model Notification {
+  id        Int              @id @default(autoincrement())
+  type      NotificationType
+  content   String
+  user      User             @relation("Notifications", fields: [userId], references: [id])
+  userId    Int
+  createdAt DateTime         @default(now())
+}
+
+enum NotificationType {
+  invitation
+  confirmation
+  disconnection
 }

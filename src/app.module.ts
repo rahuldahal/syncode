@@ -8,6 +8,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { ProjectModule } from './project/project.module';
 import { RedirectMiddleware } from './middlewares/redirect.middleware';
 import { MiddlewareConsumer, Module, ValidationPipe } from '@nestjs/common';
+import { NotificationModule } from './event/notificaton/notification.module';
 
 @Module({
   providers: [
@@ -23,6 +24,7 @@ import { MiddlewareConsumer, Module, ValidationPipe } from '@nestjs/common';
     PrismaModule,
     ProjectModule,
     FileModule,
+    NotificationModule,
     EventModule,
   ],
 })
