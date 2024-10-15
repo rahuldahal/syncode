@@ -23,7 +23,6 @@ import {
 } from './types/event.type';
 
 @WebSocketGateway({
-  cors: { origin: 'http://localhost:5173' },
   namespace: 'collaboration',
 })
 @UseGuards(EventJwtGuard)
